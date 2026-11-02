@@ -16,3 +16,6 @@ __pycache__/
 target/
 *.log
 .DS_Store
+.idea/
+*.iml
+pubspec_overrides.yaml
