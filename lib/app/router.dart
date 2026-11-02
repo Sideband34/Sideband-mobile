@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../design_system/widgets.dart';
 import '../features/discover/discover_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/history/receipt_screen.dart';
@@ -34,26 +35,44 @@ class HomeShell extends StatelessWidget {
 
   static const _tabs = [
     ('/', Icons.radar, 'Discover'),
-    ('/session', Icons.bolt, 'Session'),
-    ('/limits', Icons.speed, 'Limit'),
-    ('/history', Icons.receipt_long, 'History'),
+    ('/session', Icons.bolt_outlined, 'Session'),
+    ('/limits', Icons.speed_outlined, 'Limit'),
+    ('/history', Icons.receipt_long_outlined, 'History'),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final idx = _tabs.indexWhere((t) => t.$1 == location);
+    // Receipts are reached from History, so keep that tab selected.
+    final tab = location.startsWith('/receipt') ? '/history' : location;
+    final idx = _tabs.indexWhere((t) => t.$1 == tab);
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Sideband'),
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(24),
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text('Pre-release - Testnet / synthetic data only',
-                  key: Key('banner')),
+        titleSpacing: 16,
+        title: const Row(children: [
+          BrandMark(size: 30),
+          SizedBox(width: 10),
+          Text('Sideband'),
+        ]),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(36),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Semantics(
+                container: true,
+                child: const StatusChip(
+                  'Pre-release - Testnet / synthetic data only',
+                  key: Key('banner'),
+                  tone: Tone.warning,
+                  icon: Icons.science_outlined,
+                ),
+              ),
             ),
-          )),
-      body: child,
+          ),
+        ),
+      ),
+      body: SafeArea(top: false, child: child),
       bottomNavigationBar: NavigationBar(
         selectedIndex: idx < 0 ? 0 : idx,
         onDestinationSelected: (i) => context.go(_tabs[i].$1),

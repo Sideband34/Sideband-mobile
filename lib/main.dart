@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/demo.dart';
 import 'app/providers.dart';
 import 'app/router.dart';
+import 'design_system/theme.dart';
 import 'domain/voucher.dart';
 
 /// Shell only. Discovery over BLE/Wi-Fi, a keychain-backed signer/store and
@@ -40,8 +41,9 @@ class _SidebandAppState extends State<SidebandApp> {
   Widget build(BuildContext context) => MaterialApp.router(
         title: 'Sideband',
         routerConfig: _router,
-        theme: ThemeData(
-            colorSchemeSeed: const Color(0xFFFF8B24),
-            brightness: Brightness.dark),
+        debugShowCheckedModeBanner: false,
+        theme: sidebandTheme(Brightness.light),
+        darkTheme: sidebandTheme(Brightness.dark),
+        themeMode: ThemeMode.system,
       );
 }

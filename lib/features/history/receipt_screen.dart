@@ -20,6 +20,7 @@ class ReceiptScreen extends ConsumerWidget {
           return const Center(child: Text('Receipt not found'));
         }
         return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SessionView(
               receipt: matches.first, now: ref.watch(demoProvider).clock()),
         );
