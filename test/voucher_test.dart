@@ -74,4 +74,13 @@ void main() {
     expect(() => buildPreimage(domain, BigInt.one << 127),
         throwsA(isA<VoucherException>()));
   });
+
+  test('i128 encoding splits into hi/lo 64-bit words for amounts above 2^64',
+      () {
+    final big = (BigInt.one << 64) + BigInt.from(5);
+    final h = hex(buildPreimage(domain, big));
+    // after: map header (12 bytes) + symbol "amount" (16) + I128 tag (4) => 32 bytes
+    final amountWords = h.substring(32 * 2, (32 + 16) * 2);
+    expect(amountWords, '0000000000000001' '0000000000000005');
+  });
 }

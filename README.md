@@ -47,7 +47,7 @@ The project uses the **approved flat SVG logo** in [`brand/icon.svg`](./brand/ic
 
 **Implemented and tested** (`flutter test`, 31 tests; `flutter analyze` clean; `dart format` clean)
 
-- `lib/domain/voucher.dart`: cumulative voucher creation (ed25519 via `package:cryptography`), a port of `sideband-test-format-v1`. Dart-computed preimages, commitments and **signatures equal the TypeScript golden vectors** from `sideband-channels`.
+- `lib/domain/voucher.dart`: cumulative voucher creation (ed25519 via `package:cryptography`), byte-compatible with `sideband-commit-v2` (the upstream one-way-channel commitment XDR). Dart-computed preimages, commitments and **signatures equal the TypeScript golden vectors** from `sideband-channels`.
 - `lib/domain/strkey.dart`: minimal `G...`/`C...` strkey codec, checked against the same vectors.
 - `lib/domain/manifest.dart`: verifies the provider-signed manifest from `sideband-gateway` (stale, not-yet-valid, wrong network, untrusted provider, tamper).
 - `lib/domain/payer_session.dart`: payer side of a session on top of `sideband_protocol`'s `SessionMachine`: offer validation against policy and the funded channel (provider, network, expiry), spend cap = min(user limit, offer cap, deposit), monotonic signing, refusal to sign past the budget, stop on provider close/error.

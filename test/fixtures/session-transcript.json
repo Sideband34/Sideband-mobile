@@ -48,8 +48,8 @@
       "session": "sess-fixture-0001",
       "channelRef": "CCELZJJND6CW5DPON2UDEEVCZ7BDGDZWNMAQDFJGUFEUNVMSIX2RCYIC",
       "cumulativeAmount": "0.002",
-      "commitment": "7467ce8ccafa1e130d5e7576a4bfacac7a3802e5d3ace45ac4c832d2c2801ff5",
-      "signature": "bf6b72a32132695f2eb9aa55f61f11c22da1c2da162fd5bedae389f108bd788dc5468d4decf3ddd3e44cf2be8e099603fcf1e1d429aea7bc52ae4965e11ee106"
+      "commitment": "7b65c4b529838f052a985b9575191feb10f556967d4ac9222d41fa0a044e11eb",
+      "signature": "cd0a56a191dee1859b6168eb4ae1e4030943aebbdb75190ec1fce3bc3ac8bb516a1dc20c2dc132581962db4053113f264e13cbd855a2e3db4d18f2b62aff4204"
     },
     "voucher_high": {
       "type": "voucher",
@@ -57,8 +57,8 @@
       "session": "sess-fixture-0001",
       "channelRef": "CCELZJJND6CW5DPON2UDEEVCZ7BDGDZWNMAQDFJGUFEUNVMSIX2RCYIC",
       "cumulativeAmount": "0.004",
-      "commitment": "352b54a17e275d32c2599f8299f3e9a7e1f6da4a5a2ef719a179ed50df8a88b5",
-      "signature": "396808e7f646bbf2d1e1fc9106f04e3c9080771c930916f64d1d948e5666ef21931f3d3a7d862e69e5edc49e0d7eb0b2d25cb8ecadc2e4df82281f5c04e24103"
+      "commitment": "24cb1f6eafd19a77f0dc3ea15674b295c88e763d393ee5aca4898b272dafb0bd",
+      "signature": "65afe8b18ed33ca5d82d6f9c5bbed5dcc5873ecf905b78e5023e8d0050d1432b0475f5bea619f23f7c91f7ea0fff5a2fe1e75eacf5951c74e98e0a5fa3637a08"
     },
     "meter_sample": {
       "type": "meter_sample",
