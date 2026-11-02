@@ -151,24 +151,24 @@ void main() {
   });
 
   test(
-      'restart: a new runner on the same durable store never re-signs lower amounts',
+      'restart: a used channel cannot start a new session, so nothing lower is re-signed',
       () async {
     final disk = InMemorySecureStore();
-    final p1 = loop();
-    final r1 = runner(p1, disk: disk);
+    final r1 = runner(loop(), disk: disk);
     await r1.start();
     await r1.use('a b c d e'); // 0.005 signed
 
     final copy = InMemorySecureStore()
       ..load(disk.snapshot()); // "app restarted"
     final p2 = loop();
-    final r2 = runner(p2, disk: copy);
-    await r2.start();
-    // provider (fresh session) wants 0.002 only: already covered by the high-water mark,
-    // so the payer must NOT sign a lower voucher; the provider keeps asking and we
-    // honestly cannot comply with a lower cumulative.
-    await expectLater(r2.use('a b'), throwsA(isA<PaymentRequired>()));
+    await expectLater(
+      runner(p2, disk: copy).start(),
+      throwsA(
+          predicate((e) => e is SessionViolation && e.code == 'channel_used')),
+    );
     expect(p2.log, isEmpty);
+    expect(await StoreBackedSignedLedger(copy).highest(channelId),
+        Amount.parse('0.005').stroops);
   });
 
   test('provider replay/rollback is rejected by the provider side', () async {
