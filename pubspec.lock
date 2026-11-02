@@ -241,7 +241,7 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "claude/drips-wave-maintainer-projects-iwucl5"
+      ref: main
       resolved-ref: be2a43d6116df52366f12cd6829d4a0836c37aa9
       url: "https://github.com/Sideband34/Sideband-protocol.git"
     source: git

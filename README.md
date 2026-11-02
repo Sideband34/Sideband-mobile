@@ -70,7 +70,7 @@ flutter analyze
 flutter test
 ```
 
-`sideband_protocol` is a git dependency on the `claude/drips-wave-maintainer-projects-iwucl5` branch. Fixtures under `test/fixtures/` are copied from `sideband-channels/fixtures/voucher-vectors.json` and `sideband-gateway/fixtures/session-transcript.json`; refresh them when those formats change.
+`sideband_protocol` is a git dependency on the `main` branch. Fixtures under `test/fixtures/` are copied from `sideband-channels/fixtures/voucher-vectors.json` and `sideband-gateway/fixtures/session-transcript.json`; refresh them when those formats change.
 
 ## Siblings and compatibility
 
