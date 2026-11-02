@@ -4,7 +4,7 @@
 
 > Sideband — Nearby services. Metered value. Stellar settlement.
 
-**Status: repository scaffold / not implemented.** This repo is one of **exactly four meaningful independent codebases** in the Sideband Stellar-native project. It is not a placeholder created merely to increase Drips Wave submissions.
+**Status: M0/M1 payer domain layer implemented and tested; no device features (see Status below).** This repo is one of **exactly four meaningful independent codebases** in the Sideband Stellar-native project. It is not a placeholder created merely to increase Drips Wave submissions.
 
 ## Owns
 Nearby service discovery UX, local sessions, payer/provider modes, secure signing, spending limits, usage history and receipts
@@ -41,3 +41,42 @@ Stellar is essential: An online setup transaction deposits a supported Stellar a
 ## Official project identity
 
 The project uses the **approved flat SVG logo** in [`brand/icon.svg`](./brand/icon.svg), with an editable transparent vector mark in [`brand/mark.svg`](./brand/mark.svg). The [512 px GitHub organization avatar](./brand/org-avatar.png) is in the same directory. This logo is shared by all four project repositories. UI design remains intentionally flexible.
+
+
+## Status: payer domain layer (v0.1.0)
+
+**Implemented and tested** (`flutter test`, 31 tests; `flutter analyze` clean; `dart format` clean)
+
+- `lib/domain/voucher.dart`: cumulative voucher creation (ed25519 via `package:cryptography`), a port of `sideband-test-format-v1`. Dart-computed preimages, commitments and **signatures equal the TypeScript golden vectors** from `sideband-channels`.
+- `lib/domain/strkey.dart`: minimal `G...`/`C...` strkey codec, checked against the same vectors.
+- `lib/domain/manifest.dart`: verifies the provider-signed manifest from `sideband-gateway` (stale, not-yet-valid, wrong network, untrusted provider, tamper).
+- `lib/domain/payer_session.dart`: payer side of a session on top of `sideband_protocol`'s `SessionMachine`: offer validation against policy and the funded channel (provider, network, expiry), spend cap = min(user limit, offer cap, deposit), monotonic signing, refusal to sign past the budget, stop on provider close/error.
+- `lib/domain/signed_ledger.dart`: high-water mark of signed amounts, advanced before signing; prevents rollback or re-signing after a restart (in-memory implementation only).
+- `lib/domain/receipt.dart` + `lib/features/session/session_view.dart`: receipts whose wording is "committed (not settled)" until a confirmed state; widget tests assert nothing else says settled.
+- Cross-repo parity: `test/fixtures/session-transcript.json` (from `sideband-gateway`) is decoded with `sideband_protocol`, and the Dart payer reproduces the gateway's accepted voucher byte for byte.
+
+**NOT implemented / unverified**
+
+- No BLE or local Wi-Fi discovery or transport (needs `nearby`/platform plugins and two physical phones). **Nothing has been run on a device or emulator**; Android/iOS folders are the unmodified `flutter create` templates and were never built.
+- No secure keystore/keychain signer (only the test-only `SeedSigner`), no durable ledger, no stellar wallet/channel funding or settlement integration, no usage history persistence.
+- The app shell shows one clearly labeled synthetic receipt only. State management (Riverpod) and routing (go_router) from the build guide are not adopted yet.
+- Voucher/manifest layouts are Sideband test formats, not audited.
+
+## Quick start
+
+```
+flutter pub get
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+```
+
+`sideband_protocol` is a git dependency on the `claude/drips-wave-maintainer-projects-iwucl5` branch. Fixtures under `test/fixtures/` are copied from `sideband-channels/fixtures/voucher-vectors.json` and `sideband-gateway/fixtures/session-transcript.json`; refresh them when those formats change.
+
+## Siblings and compatibility
+
+| Repo | Contract |
+|---|---|
+| `sideband-protocol` v0.1.0 | frames, `SessionMachine`, `Amount` |
+| `sideband-channels` v0.1.0 | voucher byte layout (golden vectors) |
+| `sideband-gateway` v0.1.0 | manifest + frame transcript fixture |
