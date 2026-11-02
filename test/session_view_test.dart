@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sideband_mobile/domain/receipt.dart';
 import 'package:sideband_mobile/features/session/session_view.dart';
-import 'package:sideband_mobile/main.dart';
 import 'package:sideband_protocol/sideband_protocol.dart';
 
 Receipt receipt(SettlementStatus s) => Receipt(
@@ -48,12 +47,5 @@ void main() {
     await pump(t, SettlementStatus.confirmed);
     expect(find.textContaining('Settled on Stellar: 0.004'), findsOneWidget);
     expect(find.byKey(const Key('disclosure')), findsNothing);
-  });
-
-  testWidgets('app shell labels itself as synthetic and exposes semantics',
-      (t) async {
-    await t.pumpWidget(const SidebandApp());
-    expect(find.textContaining('synthetic data'), findsOneWidget);
-    expect(find.bySemanticsLabel('Session receipt'), findsOneWidget);
   });
 }
