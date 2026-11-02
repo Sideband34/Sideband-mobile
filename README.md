@@ -43,24 +43,23 @@ Stellar is essential: An online setup transaction deposits a supported Stellar a
 The project uses the **approved flat SVG logo** in [`brand/icon.svg`](./brand/icon.svg), with an editable transparent vector mark in [`brand/mark.svg`](./brand/mark.svg). The [512 px GitHub organization avatar](./brand/org-avatar.png) is in the same directory. This logo is shared by all four project repositories. UI design remains intentionally flexible.
 
 
-## Status: payer domain layer (v0.1.0)
+## Status: payer domain, session runner and app shell (v0.1.0)
 
-**Implemented and tested** (`flutter test`, 31 tests; `flutter analyze` clean; `dart format` clean)
+**Implemented and tested** (`flutter test`, 56 tests; `flutter analyze` and `dart format` clean)
 
-- `lib/domain/voucher.dart`: cumulative voucher creation (ed25519 via `package:cryptography`), byte-compatible with `sideband-commit-v2` (the upstream one-way-channel commitment XDR). Dart-computed preimages, commitments and **signatures equal the TypeScript golden vectors** from `sideband-channels`.
-- `lib/domain/strkey.dart`: minimal `G...`/`C...` strkey codec, checked against the same vectors.
-- `lib/domain/manifest.dart`: verifies the provider-signed manifest from `sideband-gateway` (stale, not-yet-valid, wrong network, untrusted provider, tamper).
-- `lib/domain/payer_session.dart`: payer side of a session on top of `sideband_protocol`'s `SessionMachine`: offer validation against policy and the funded channel (provider, network, expiry), spend cap = min(user limit, offer cap, deposit), monotonic signing, refusal to sign past the budget, stop on provider close/error.
-- `lib/domain/signed_ledger.dart`: high-water mark of signed amounts, advanced before signing; prevents rollback or re-signing after a restart (in-memory implementation only).
-- `lib/domain/receipt.dart` + `lib/features/session/session_view.dart`: receipts whose wording is "committed (not settled)" until a confirmed state; widget tests assert nothing else says settled.
-- Cross-repo parity: `test/fixtures/session-transcript.json` (from `sideband-gateway`) is decoded with `sideband_protocol`, and the Dart payer reproduces the gateway's accepted voucher byte for byte.
+- Domain (`lib/domain`): `sideband-commit-v2` voucher signing (the upstream one-way-channel Commitment XDR, hand-encoded; **Dart signatures equal the TypeScript golden vectors**), strkey codec, voucher signature verification, manifest verification (stale, network, tamper), `PayerSession` (provider/channel binding, spend cap = min(user limit, offer cap, deposit), monotonic signing, pay-on-402 path), honest receipts.
+- Integrations (`lib/integrations`): `ProviderLink`/`Discovery` transport interfaces; `LoopbackProvider` (in-memory SYNTHETIC provider mirroring gateway rules); `HttpProviderLink` for the real gateway; `SessionRunner`; `SecureStore` abstraction with `StoreBackedSignedLedger` (serialized writes, fails loudly on corrupt data) and `HistoryRepository` (a confirmed receipt is never downgraded).
+- App (`lib/app`, `lib/features`): Riverpod providers and a go_router shell with Discover, Session, Limit, History and Receipt screens driven by the loopback provider and the bundled gateway fixture. A persistent banner states pre-release/Testnet/synthetic.
+- Cross-repo end-to-end (`test/e2e/gateway_e2e_test.dart`): spawns the real TypeScript gateway (test channel adapter, loopback only) and runs the Dart payer against it over HTTP: the gateway verifies a Dart-signed voucher, enforces channel reuse refusal, session/admin auth, and settlement preparation stays `SUBMITTED` (synthetic, never confirmed). Auto-skips when `../Sideband-gateway` (with `npm ci`) and `../Sideband-channels/dist` are absent; set `SIDEBAND_GATEWAY_DIR` to override.
 
 **NOT implemented / unverified**
 
-- No BLE or local Wi-Fi discovery or transport (needs `nearby`/platform plugins and two physical phones). **Nothing has been run on a device or emulator**; Android/iOS folders are the unmodified `flutter create` templates and were never built.
-- No secure keystore/keychain signer (only the test-only `SeedSigner`), no durable ledger, no stellar wallet/channel funding or settlement integration, no usage history persistence.
-- The app shell shows one clearly labeled synthetic receipt only. State management (Riverpod) and routing (go_router) from the build guide are not adopted yet.
-- Voucher/manifest layouts are Sideband test formats, not audited.
+- No BLE or local Wi-Fi discovery/transport; no device or emulator run; Android/iOS folders are untouched `flutter create` templates, never built.
+- No keychain/keystore: the only signer is the test-only `SeedSigner` (public test seed), and `SecureStore` has only a volatile in-memory implementation, so the app loses its ledger and history on restart. A flutter_secure_storage adapter is the next step and is not written.
+- Payer-side session resume after a crash is not implemented; a channel that already carries signed commitments is refused for new sessions by design (cumulative amounts are per channel).
+- No Stellar wallet/channel funding or settlement/confirmation in the app; receipts stay "committed" because nothing observes the chain.
+- The demo clock is frozen at the fixture time so the fixture manifest verifies.
+- CI does not run the e2e test (it skips without the gateway checkout).
 
 ## Quick start
 
@@ -78,5 +77,5 @@ flutter test
 | Repo | Contract |
 |---|---|
 | `sideband-protocol` v0.1.0 | frames, `SessionMachine`, `Amount` |
-| `sideband-channels` v0.1.0 | voucher byte layout (golden vectors) |
+| `sideband-channels` v0.1.0 | voucher bytes (`sideband-commit-v2` golden vectors) |
 | `sideband-gateway` v0.1.0 | manifest + frame transcript fixture |
