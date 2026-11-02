@@ -15,6 +15,8 @@ dependencies:
     git:
       url: https://github.com/Sideband34/Sideband-protocol.git
       ref: claude/drips-wave-maintainer-projects-iwucl5
+  flutter_riverpod: ^3.4.3
+  go_router: ^18.1.2
 
 dev_dependencies:
   flutter_test:
@@ -23,3 +25,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/demo/session-transcript.json
