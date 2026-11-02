@@ -83,4 +83,26 @@ void main() {
     final amountWords = h.substring(32 * 2, (32 + 16) * 2);
     expect(amountWords, '0000000000000001' '0000000000000005');
   });
+
+  test('verifyVoucherSignature accepts TS vectors and rejects tampering',
+      () async {
+    final v = (fx['vectors'] as List).last as Map<String, dynamic>;
+    final stroops = BigInt.parse(v['cumulativeStroops'] as String);
+    Future<String?> check(
+            {String? sig, BigInt? amt, String? commitment, String? channel}) =>
+        verifyVoucherSignature(
+          domain,
+          channelRef: channel ?? domain.channelId,
+          cumulative: amt ?? stroops,
+          commitment: commitment ?? v['commitment'] as String,
+          signature: sig ?? v['signature'] as String,
+        );
+    expect(await check(), isNull);
+    expect(await check(amt: stroops + BigInt.one), 'commitment_mismatch');
+    expect(await check(channel: 'CX'), 'wrong_channel');
+    expect(await check(sig: 'zz'), 'malformed');
+    final bad = (v['signature'] as String)
+        .replaceRange(0, 1, v['signature'][0] == '0' ? '1' : '0');
+    expect(await check(sig: bad), 'bad_signature');
+  });
 }

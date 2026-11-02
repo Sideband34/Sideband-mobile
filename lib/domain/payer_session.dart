@@ -125,6 +125,24 @@ class PayerSession {
       close('budget_exhausted');
       throw BudgetExceeded(owed, cap);
     }
+    return _signUpTo(owed);
+  }
+
+  /// Pay-before-serve flow: the provider answered 402 with the cumulative
+  /// amount it requires. Same discipline as a meter sample: never above the
+  /// budget, never lower than what was already signed.
+  Future<VoucherFrame?> onPaymentRequired(Amount required) async {
+    if (phase != SessionPhase.active) {
+      throw SessionViolation('bad_state', 'Session is not active');
+    }
+    if (required > _maxSpend!) {
+      close('budget_exhausted');
+      throw BudgetExceeded(required, _maxSpend!);
+    }
+    return _signUpTo(required);
+  }
+
+  Future<VoucherFrame?> _signUpTo(Amount owed) async {
     final target = owed.stroops;
     if (target <= BigInt.zero) return null;
     if (target <= await ledger.highest(channel.channelId)) return null;

@@ -166,3 +166,44 @@ Future<SignedVoucher> createVoucher(
     signature: hex(sig),
   );
 }
+
+/// Verifies a voucher's commitment and signature against the channel domain.
+/// Used by provider-side test doubles and by tests; payers do not verify their
+/// own vouchers. Returns null when valid, else a stable failure code.
+Future<String?> verifyVoucherSignature(
+  VoucherDomain d, {
+  required String channelRef,
+  required BigInt cumulative,
+  required String commitment,
+  required String signature,
+}) async {
+  if (channelRef != d.channelId) {
+    return 'wrong_channel';
+  }
+  if (!RegExp(r'^[0-9a-f]{128}$').hasMatch(signature) ||
+      !RegExp(r'^[0-9a-f]{64}$').hasMatch(commitment)) {
+    return 'malformed';
+  }
+  final Uint8List pre;
+  try {
+    pre = buildPreimage(d, cumulative);
+  } on VoucherException {
+    return 'malformed';
+  }
+  if (hex(hash.sha256.convert(pre).bytes) != commitment) {
+    return 'commitment_mismatch';
+  }
+  final sig = List<int>.generate(
+    64,
+    (i) => int.parse(signature.substring(i * 2, i * 2 + 2), radix: 16),
+  );
+  final ok = await Ed25519().verify(
+    pre,
+    signature: Signature(
+      sig,
+      publicKey: SimplePublicKey(decodeEd25519PublicKey(d.payer),
+          type: KeyPairType.ed25519),
+    ),
+  );
+  return ok ? null : 'bad_signature';
+}
