@@ -1,0 +1,85 @@
+{
+  "warning": "SYNTHETIC transcript from the TEST channel adapter. Not a real session or settlement.",
+  "now": 1000,
+  "network": "testnet",
+  "providerPublicKey": "GDKUEB62DFEXPXHUNLN75QV4FZ23KLK2RJBBQT7N7XAAAJHQ4PUNUPKW",
+  "payerPublicKey": "GBIRYNFBULFVEHPRNOZENOG6RZ4ZPTRDLR7HNMRKHV2QHISIDHOYV6ZN",
+  "channelId": "CCELZJJND6CW5DPON2UDEEVCZ7BDGDZWNMAQDFJGUFEUNVMSIX2RCYIC",
+  "manifest": {
+    "manifest": {
+      "schemaVersion": 1,
+      "serviceId": "demo-text-words",
+      "providerPublicKey": "GDKUEB62DFEXPXHUNLN75QV4FZ23KLK2RJBBQT7N7XAAAJHQ4PUNUPKW",
+      "network": "testnet",
+      "pricePerUnit": "0.001",
+      "unit": "word",
+      "currency": "TEST-TOKEN",
+      "maxSessionUnits": 1000,
+      "issuedAt": 1000,
+      "expiresAt": 4600
+    },
+    "signature": "262a85f03aa3dd2287440f51e12caa226a0c279ee76463614658da18aee2c2463b4551968527004597788f27782e497c7480a363fee802c321bd94cdf43ca407"
+  },
+  "frames": {
+    "service_offer": {
+      "type": "service_offer",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "serviceId": "demo-text-words",
+      "providerPublicKey": "GDKUEB62DFEXPXHUNLN75QV4FZ23KLK2RJBBQT7N7XAAAJHQ4PUNUPKW",
+      "pricePerUnit": "0.001",
+      "unit": "word",
+      "currency": "TEST-TOKEN",
+      "network": "testnet",
+      "maxSessionUnits": 1000,
+      "expiresAt": 1300
+    },
+    "session_accept": {
+      "type": "session_accept",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "channelRef": "CCELZJJND6CW5DPON2UDEEVCZ7BDGDZWNMAQDFJGUFEUNVMSIX2RCYIC",
+      "maxSpend": "1",
+      "nonce": "nonce-fixture-0001"
+    },
+    "voucher_low": {
+      "type": "voucher",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "channelRef": "CCELZJJND6CW5DPON2UDEEVCZ7BDGDZWNMAQDFJGUFEUNVMSIX2RCYIC",
+      "cumulativeAmount": "0.002",
+      "commitment": "7467ce8ccafa1e130d5e7576a4bfacac7a3802e5d3ace45ac4c832d2c2801ff5",
+      "signature": "bf6b72a32132695f2eb9aa55f61f11c22da1c2da162fd5bedae389f108bd788dc5468d4decf3ddd3e44cf2be8e099603fcf1e1d429aea7bc52ae4965e11ee106"
+    },
+    "voucher_high": {
+      "type": "voucher",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "channelRef": "CCELZJJND6CW5DPON2UDEEVCZ7BDGDZWNMAQDFJGUFEUNVMSIX2RCYIC",
+      "cumulativeAmount": "0.004",
+      "commitment": "352b54a17e275d32c2599f8299f3e9a7e1f6da4a5a2ef719a179ed50df8a88b5",
+      "signature": "396808e7f646bbf2d1e1fc9106f04e3c9080771c930916f64d1d948e5666ef21931f3d3a7d862e69e5edc49e0d7eb0b2d25cb8ecadc2e4df82281f5c04e24103"
+    },
+    "meter_sample": {
+      "type": "meter_sample",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "seq": 1,
+      "cumulativeUnits": 4,
+      "sampleHash": "aa7656e299c395b79782b2461bd21267e894f9903b10f577bc254f5a0cd176c7"
+    },
+    "session_close": {
+      "type": "session_close",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "reason": "client_close"
+    },
+    "error": {
+      "type": "error",
+      "v": 1,
+      "session": "sess-fixture-0001",
+      "code": "non_monotonic",
+      "message": "Cumulative amount must strictly increase"
+    }
+  }
+}
