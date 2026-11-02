@@ -1,0 +1,96 @@
+name: release
+
+# Builds a pre-release Android APK for every v* tag and attaches it to a GitHub
+# Release. These builds are Testnet/synthetic-only developer previews.
+#
+# Optional release signing (repository secrets). If ANDROID_KEYSTORE_BASE64 is
+# not set, the APK is signed with the Gradle debug key and named "-debug-signed":
+#   ANDROID_KEYSTORE_BASE64    base64 of the upload keystore (.jks)
+#   ANDROID_KEYSTORE_PASSWORD  keystore password
+#   ANDROID_KEY_ALIAS          key alias inside the keystore
+#   ANDROID_KEY_PASSWORD       key password
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Configure signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "No keystore secret: building a debug-signed APK."
+            echo "SIGNING=debug-signed" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          keystore="$RUNNER_TEMP/upload.jks"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          {
+            echo "storeFile=$keystore"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > android/key.properties
+          echo "SIGNING=release-signed" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          flutter build apk --release \
+            --build-name="${version%%-*}" \
+            --build-number="${{ github.run_number }}"
+          out="sideband-${GITHUB_REF_NAME}-android-${SIGNING}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$out"
+          sha256sum "$out" > "$out.sha256"
+          echo "APK=$out" >> "$GITHUB_ENV"
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/upload.jks"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: |
+            ${{ env.APK }}
+            ${{ env.APK }}.sha256
+          body: |
+            Pre-release Android build of the Sideband payer app (${{ env.SIGNING }}).
+
+            - Stellar **Testnet / synthetic data only**. Do not use real funds.
+            - Runs against an in-memory synthetic provider; Bluetooth / Wi-Fi
+              discovery is not implemented yet.
+            - Not verified on physical devices. Not on Google Play.
+
+            Verify the download with the attached `.sha256` file.
