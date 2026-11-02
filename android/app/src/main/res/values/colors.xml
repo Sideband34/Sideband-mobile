@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand background (brand/tokens.json "secondary"). -->
+    <color name="ic_launcher_background">#130B12</color>
+    <color name="splash_background">#130B12</color>
+</resources>

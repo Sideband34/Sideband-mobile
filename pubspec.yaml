@@ -22,8 +22,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/demo/session-transcript.json
+    - brand/icon-192.png
+
+# Launcher icons are generated from the approved brand mark (brand/mark.svg)
+# rendered onto the brand background. Regenerate with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/launcher/icon.png"
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#130B12"
+  adaptive_icon_foreground: "assets/launcher/foreground.png"
+  min_sdk_android: 21
