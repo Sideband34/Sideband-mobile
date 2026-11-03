@@ -1,7 +1,12 @@
 name: release
 
-# Builds a pre-release Android APK for every v* tag and attaches it to a GitHub
-# Release. These builds are Testnet/synthetic-only developer previews.
+# Builds the Android APK for every v* tag and publishes a normal (not
+# pre-release) GitHub Release, so it becomes "latest". The APK asset always has
+# the FIXED name sideband-android.apk (+ .sha256), which makes this URL always
+# download the newest build:
+#   https://github.com/Sideband34/Sideband-mobile/releases/latest/download/sideband-android.apk
+# The landing page links there. These builds are Testnet/synthetic-only
+# developer previews; the release notes say so.
 #
 # Optional release signing (repository secrets). If ANDROID_KEYSTORE_BASE64 is
 # not set, the APK is signed with the Gradle debug key and named "-debug-signed":
@@ -70,7 +75,8 @@ jobs:
           flutter build apk --release \
             --build-name="${version%%-*}" \
             --build-number="${{ github.run_number }}"
-          out="sideband-${GITHUB_REF_NAME}-android-${SIGNING}.apk"
+          # Fixed asset name: /releases/latest/download/sideband-android.apk
+          out="sideband-android.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$out"
           sha256sum "$out" > "$out.sha256"
           echo "APK=$out" >> "$GITHUB_ENV"
@@ -81,16 +87,21 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          prerelease: true
+          prerelease: false
+          make_latest: true
           files: |
             ${{ env.APK }}
             ${{ env.APK }}.sha256
           body: |
-            Pre-release Android build of the Sideband payer app (${{ env.SIGNING }}).
+            Android developer-preview build of the Sideband payer app
+            (${{ github.ref_name }}, ${{ env.SIGNING }}).
+
+            Direct link to the newest APK:
+            https://github.com/${{ github.repository }}/releases/latest/download/sideband-android.apk
 
             - Stellar **Testnet / synthetic data only**. Do not use real funds.
-            - Runs against an in-memory synthetic provider; Bluetooth / Wi-Fi
-              discovery is not implemented yet.
+            - Runs against an in-memory synthetic provider and a simulated
+              channel; the Bluetooth adapter exists but is not wired in.
             - Not verified on physical devices. Not on Google Play.
 
             Verify the download with the attached `.sha256` file.
