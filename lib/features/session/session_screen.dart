@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sideband_protocol/sideband_protocol.dart';
 
 import '../../app/providers.dart';
 import '../../design_system/widgets.dart';
@@ -69,6 +70,15 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                       key: const Key('committed'),
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: cs.onSurfaceVariant)),
+                  if (s.baseline != null && s.baseline! > Amount.zero)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                          'Channel already carried ${s.baseline} TEST-TOKEN from earlier sessions',
+                          key: const Key('baseline'),
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: cs.onSurfaceVariant)),
+                    ),
                   const Divider(height: 28),
                   Row(children: [
                     Icon(Icons.straighten,

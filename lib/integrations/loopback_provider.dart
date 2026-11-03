@@ -8,7 +8,11 @@ import 'provider_link.dart';
 /// 402 until covered, unit cap, shutdown) using the protocol package's
 /// [SessionMachine] and this app's voucher verifier. It is NOT the gateway and
 /// moves no money. The real gateway is exercised in test/e2e.
-class LoopbackProvider implements ProviderLink {
+///
+/// Channel state (highest accepted voucher) lives in a [SyntheticChannelBook]
+/// shared by every session on the same synthetic provider, so sequential
+/// sessions on one channel must agree on the baseline, as with the gateway.
+class LoopbackProvider implements ResumableLink {
   LoopbackProvider({
     required this.domain,
     required this.network,
@@ -17,7 +21,9 @@ class LoopbackProvider implements ProviderLink {
     this.pricePerUnit = '0.001',
     this.maxUnits = 1000,
     this.currency = 'TEST-TOKEN',
-  }) : _machine = SessionMachine(sessionId: sessionId, now: now);
+    SyntheticChannelBook? book,
+  })  : book = book ?? SyntheticChannelBook(),
+        _machine = SessionMachine(sessionId: sessionId, now: now);
 
   final VoucherDomain domain;
   final String network;
@@ -26,6 +32,7 @@ class LoopbackProvider implements ProviderLink {
   final String pricePerUnit;
   final int maxUnits;
   final String currency;
+  final SyntheticChannelBook book;
   final SessionMachine _machine;
 
   int units = 0;
@@ -57,9 +64,14 @@ class LoopbackProvider implements ProviderLink {
   @override
   Future<void> accept(SessionAccept a) async {
     try {
-      _machine.receiveAccept(a, knownChannelRefs: {domain.channelId});
+      _machine.receiveAccept(a,
+          knownChannelRefs: {domain.channelId},
+          channelCumulative: book.highest(domain.channelId));
     } on SessionViolation catch (e) {
-      throw ProviderRejected(e.code, e.message);
+      throw ProviderRejected(e.code, e.message, details: {
+        if (e.code == 'baseline_mismatch')
+          'expectedBaseline': book.highest(domain.channelId).toString(),
+      });
     }
   }
 
@@ -81,6 +93,7 @@ class LoopbackProvider implements ProviderLink {
     } on SessionViolation catch (e) {
       throw ProviderRejected(e.code, e.message);
     }
+    book.record(domain.channelId, v.cumulativeAmount);
   }
 
   @override
@@ -95,10 +108,11 @@ class LoopbackProvider implements ProviderLink {
     if (units + words > maxUnits) {
       throw ProviderRejected('unit_cap', 'Session unit cap reached');
     }
-    final newOwed = _price.times(units + words);
-    if (newOwed > _machine.highestCumulative) {
+    // Channel cumulative the payer must have signed: baseline + session owed.
+    final required = _machine.accept!.baseline + _price.times(units + words);
+    if (required > _machine.highestCumulative) {
       throw PaymentRequired(
-          required: newOwed, current: _machine.highestCumulative);
+          required: required, current: _machine.highestCumulative);
     }
     units += words;
     return ServeResult(
@@ -107,4 +121,26 @@ class LoopbackProvider implements ProviderLink {
 
   @override
   Future<void> close() async => _machine.close();
+
+  @override
+  Map<String, String> get resumeState => {'session': sessionId};
+
+  @override
+  Future<void> reattach(Map<String, String> state) async {
+    if (state['session'] != sessionId) {
+      throw ProviderRejected('unknown_session', 'Unknown session');
+    }
+    if (_machine.phase != SessionPhase.active) {
+      throw ProviderRejected('session_closed', 'Session is not active');
+    }
+  }
+}
+
+/// Highest accepted voucher per channel for the synthetic provider.
+class SyntheticChannelBook {
+  final Map<String, Amount> _highest = {};
+  Amount highest(String channelId) => _highest[channelId] ?? Amount.zero;
+  void record(String channelId, Amount a) {
+    if (a > highest(channelId)) _highest[channelId] = a;
+  }
 }

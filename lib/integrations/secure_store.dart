@@ -1,12 +1,15 @@
-/// Key-value persistence boundary for sensitive local state (signed-amount
-/// high-water marks, receipts). Production implementations must sit on the
-/// platform keychain/keystore (e.g. a flutter_secure_storage adapter), which
-/// is NOT included yet. [InMemorySecureStore] is volatile and test-only.
-abstract interface class SecureStore {
+/// Durable key-value persistence (string values).
+abstract interface class KeyValueStore {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
   Future<void> delete(String key);
 }
+
+/// A [KeyValueStore] whose values are protected by the platform
+/// keychain/keystore: signed-amount high-water marks, the signer seed, the
+/// session journal (it holds bearer tokens). [FlutterSecureStore] is the
+/// production implementation; [InMemorySecureStore] is volatile and test-only.
+abstract interface class SecureStore implements KeyValueStore {}
 
 class InMemorySecureStore implements SecureStore {
   final Map<String, String> _m = {};

@@ -59,7 +59,9 @@ class PayerSession {
     required this.signer,
     required this.ledger,
     required this.now,
-  }) : _machine = SessionMachine(sessionId: sessionId, now: now);
+    int Function()? machineClock,
+  }) : _machine =
+            SessionMachine(sessionId: sessionId, now: machineClock ?? now);
 
   final String sessionId;
   final ChannelInfo channel;
@@ -73,11 +75,19 @@ class PayerSession {
   int _units = 0;
   String? _closeReason;
   bool _closed = false;
+  Amount _baseline = Amount.zero;
 
   SessionPhase get phase => _closed ? SessionPhase.closed : _machine.phase;
   int get units => _units;
   Amount? _maxSpend;
   Amount? get maxSpend => _maxSpend;
+  String? get closeReason => _closeReason;
+  ServiceOffer? get offer => _machine.offer;
+
+  /// Channel cumulative already signed before this session (protocol v2).
+  /// Vouchers stay cumulative per channel; this session's own spend is
+  /// `signed - baseline` and is capped by [maxSpend].
+  Amount get baseline => _baseline;
 
   /// Validates the provider's offer against policy AND this channel.
   void receiveOffer(ServiceOffer o) {
@@ -94,23 +104,67 @@ class PayerSession {
     _machine.receiveOffer(o, policy);
   }
 
-  /// Builds the accept frame; the spend cap is the smallest of the payer's
-  /// limit, the offer's total cap and the channel deposit.
-  SessionAccept buildAccept({required String nonce}) {
+  /// Builds the accept frame. [baseline] is the highest amount this payer
+  /// ever signed on the channel (from the [SignedLedger]); the session cap is
+  /// the smallest of the payer's limit, the offer's total cap and what is left
+  /// of the deposit above the baseline.
+  SessionAccept buildAccept({required String nonce, Amount? baseline}) {
     final o = _machine.offer;
     if (o == null) throw SessionViolation('bad_state', 'No offer received');
+    final base = baseline ?? Amount.zero;
+    if (base >= channel.deposit) {
+      throw SessionViolation(
+          'channel_exhausted', 'Deposit fully committed; top up the channel');
+    }
     var cap = o.pricePerUnit.times(o.maxSessionUnits);
     if (limits.perSession < cap) cap = limits.perSession;
-    if (channel.deposit < cap) cap = channel.deposit;
+    final left = channel.deposit - base;
+    if (left < cap) cap = left;
     final a = SessionAccept(
       session: sessionId,
       channelRef: channel.channelId,
       maxSpend: cap,
       nonce: nonce,
+      baseline: base,
     );
     _machine.sendAccept(a);
     _maxSpend = cap;
+    _baseline = base;
     return a;
+  }
+
+  /// Rebuilds an active session after an app restart from what was journaled
+  /// before the crash (see `SessionJournal`). The offer and accept are
+  /// replayed against a machine whose clock is pinned to [acceptedAt], so an
+  /// offer that has since expired does not prevent resuming the same session.
+  static PayerSession resume({
+    required ServiceOffer offer,
+    required SessionAccept accept,
+    required int units,
+    required int acceptedAt,
+    required ChannelInfo channel,
+    required PayerPolicy policy,
+    required SpendingLimits limits,
+    required VoucherSigner signer,
+    required SignedLedger ledger,
+    required int Function() now,
+  }) {
+    final s = PayerSession(
+      sessionId: offer.session,
+      channel: channel,
+      policy: policy,
+      limits: limits,
+      signer: signer,
+      ledger: ledger,
+      now: now,
+      machineClock: () => acceptedAt,
+    );
+    s._machine.receiveOffer(offer, policy);
+    s._machine.sendAccept(accept);
+    s._maxSpend = accept.maxSpend;
+    s._baseline = accept.baseline;
+    s._units = units;
+    return s;
   }
 
   /// Handles a provider meter sample. Returns the voucher to send, or null if
@@ -125,19 +179,21 @@ class PayerSession {
       close('budget_exhausted');
       throw BudgetExceeded(owed, cap);
     }
-    return _signUpTo(owed);
+    return _signUpTo(_baseline + owed);
   }
 
-  /// Pay-before-serve flow: the provider answered 402 with the cumulative
-  /// amount it requires. Same discipline as a meter sample: never above the
-  /// budget, never lower than what was already signed.
+  /// Pay-before-serve flow: the provider answered 402 with the CHANNEL
+  /// cumulative amount it requires (baseline + session owed). Same discipline
+  /// as a meter sample: never above baseline + budget, never lower than what
+  /// was already signed.
   Future<VoucherFrame?> onPaymentRequired(Amount required) async {
     if (phase != SessionPhase.active) {
       throw SessionViolation('bad_state', 'Session is not active');
     }
-    if (required > _maxSpend!) {
+    final limit = _baseline + _maxSpend!;
+    if (required > limit) {
       close('budget_exhausted');
-      throw BudgetExceeded(required, _maxSpend!);
+      throw BudgetExceeded(required - _baseline, _maxSpend!);
     }
     return _signUpTo(required);
   }
@@ -158,6 +214,11 @@ class PayerSession {
     );
   }
 
+  /// Units the provider reported for a served request (pay-before-serve flow).
+  void recordUnits(int cumulativeUnits) {
+    if (cumulativeUnits > _units) _units = cumulativeUnits;
+  }
+
   /// Provider closed or errored: stop signing.
   void onProviderClose(Frame f) {
     if (f is SessionClose) {
@@ -174,15 +235,23 @@ class PayerSession {
     _machine.close();
   }
 
-  /// Receipt for what was committed. Starts as `committed`, never final.
-  Future<Receipt> receipt() async => Receipt(
-        sessionId: sessionId,
-        channelId: channel.channelId,
-        providerPublicKey: channel.provider,
-        units: _units,
-        committed: Amount.fromStroops(await ledger.highest(channel.channelId)),
-        status: SettlementStatus.committed,
-        closeReason: _closeReason ?? 'open',
-        channelExpiresAt: channel.expiresAt,
-      );
+  /// Receipt for what was committed IN THIS SESSION. Starts as `committed`,
+  /// never final.
+  Future<Receipt> receipt() async {
+    final signed = Amount.fromStroops(await ledger.highest(channel.channelId));
+    var mine = signed > _baseline ? signed - _baseline : Amount.zero;
+    // Later sessions on the same channel sign above our cap: never claim them.
+    if (_maxSpend != null && mine > _maxSpend!) mine = _maxSpend!;
+    return Receipt(
+      sessionId: sessionId,
+      channelId: channel.channelId,
+      providerPublicKey: channel.provider,
+      units: _units,
+      committed: mine,
+      baseline: _baseline,
+      status: SettlementStatus.committed,
+      closeReason: _closeReason ?? 'open',
+      channelExpiresAt: channel.expiresAt,
+    );
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../design_system/widgets.dart';
+import '../features/channel/channel_screen.dart';
 import '../features/discover/discover_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/history/receipt_screen.dart';
@@ -17,6 +18,7 @@ GoRouter buildRouter() => GoRouter(
             GoRoute(path: '/', builder: (c, s) => const DiscoverScreen()),
             GoRoute(path: '/session', builder: (c, s) => const SessionScreen()),
             GoRoute(path: '/limits', builder: (c, s) => const LimitsScreen()),
+            GoRoute(path: '/channel', builder: (c, s) => const ChannelScreen()),
             GoRoute(path: '/history', builder: (c, s) => const HistoryScreen()),
             GoRoute(
                 path: '/receipt/:id',
@@ -36,6 +38,7 @@ class HomeShell extends StatelessWidget {
   static const _tabs = [
     ('/', Icons.radar, 'Discover'),
     ('/session', Icons.bolt_outlined, 'Session'),
+    ('/channel', Icons.account_balance_wallet_outlined, 'Channel'),
     ('/limits', Icons.speed_outlined, 'Limit'),
     ('/history', Icons.receipt_long_outlined, 'History'),
   ];

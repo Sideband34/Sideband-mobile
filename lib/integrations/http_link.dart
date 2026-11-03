@@ -8,7 +8,7 @@ import 'provider_link.dart';
 /// [ProviderLink] over the sideband-gateway HTTP API v1 (local network). The
 /// gateway issues a per-session bearer token with the offer; plain HTTP is for
 /// local demos only (TLS is not set up).
-class HttpProviderLink implements ProviderLink {
+class HttpProviderLink implements ResumableLink {
   HttpProviderLink(this.baseUri, {HttpClient? client})
       : _http = client ?? HttpClient();
 
@@ -45,7 +45,30 @@ class HttpProviderLink implements ProviderLink {
     throw ProviderRejected(
       (e['code'] as String?) ?? 'http_$status',
       (e['message'] as String?) ?? 'HTTP $status',
+      details: Map.of(e)..removeWhere((k, _) => k == 'code' || k == 'message'),
     );
+  }
+
+  @override
+  Map<String, String> get resumeState => {
+        if (_session != null) 'session': _session!,
+        if (_token != null) 'token': _token!,
+      };
+
+  /// Re-binds to a journaled session and checks it is still active.
+  @override
+  Future<void> reattach(Map<String, String> state) async {
+    final session = state['session'];
+    if (session == null) {
+      throw ProviderRejected('not_resumable', 'No journaled session');
+    }
+    _session = session;
+    _token = state['token'];
+    final (status, json, _) = await _send('GET', '/v1/sessions/$session/usage');
+    if (status != 200) _fail(status, json);
+    if (json['phase'] != 'active') {
+      throw ProviderRejected('session_closed', 'Session is ${json['phase']}');
+    }
   }
 
   @override

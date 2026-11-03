@@ -9,7 +9,7 @@ import 'secure_store.dart';
 class HistoryRepository {
   HistoryRepository(this._store, {this.key = 'sideband.history.v1'});
 
-  final SecureStore _store;
+  final KeyValueStore _store;
   final String key;
 
   Future<List<Receipt>> all() async {
@@ -48,6 +48,7 @@ class HistoryRepository {
         'provider': r.providerPublicKey,
         'units': r.units,
         'committed': r.committed.toString(),
+        'baseline': r.baseline.toString(),
         'status': r.status.name,
         'closeReason': r.closeReason,
         'channelExpiresAt': r.channelExpiresAt,
@@ -59,6 +60,8 @@ class HistoryRepository {
         providerPublicKey: j['provider'] as String,
         units: j['units'] as int,
         committed: Amount.parse(j['committed'] as String),
+        // Absent in records written before protocol v2: fresh channel.
+        baseline: Amount.parse((j['baseline'] as String?) ?? '0'),
         status: SettlementStatus.values.byName(j['status'] as String),
         closeReason: j['closeReason'] as String,
         channelExpiresAt: j['channelExpiresAt'] as int,

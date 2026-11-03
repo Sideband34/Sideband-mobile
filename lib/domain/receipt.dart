@@ -11,24 +11,33 @@ enum SettlementStatus {
 }
 
 class Receipt {
-  const Receipt({
+  Receipt({
     required this.sessionId,
     required this.channelId,
     required this.providerPublicKey,
     required this.units,
     required this.committed,
+    Amount? baseline,
     required this.status,
     required this.closeReason,
     required this.channelExpiresAt,
-  });
+  }) : baseline = baseline ?? Amount.zero;
 
   final String sessionId;
   final String channelId;
   final String providerPublicKey;
   final int units;
 
-  /// Highest cumulative amount the payer signed. A commitment, not a payment.
+  /// Amount the payer committed in THIS session (signed channel cumulative
+  /// minus [baseline]). A commitment, not a payment.
   final Amount committed;
+
+  /// Channel cumulative already signed before this session.
+  final Amount baseline;
+
+  /// Channel cumulative at the end of this session (what the provider can
+  /// settle on-chain, together with earlier sessions).
+  Amount get channelCumulative => baseline + committed;
   final SettlementStatus status;
   final String closeReason;
 
@@ -43,6 +52,7 @@ class Receipt {
         providerPublicKey: providerPublicKey,
         units: units,
         committed: committed,
+        baseline: baseline,
         status: s,
         closeReason: closeReason,
         channelExpiresAt: channelExpiresAt,
@@ -59,8 +69,10 @@ class Receipt {
           'Settlement failed; deposit may be refundable after expiry',
       };
 
-  /// When the deposit becomes refundable if the provider never settles.
+  /// How the payer gets unspent funds back if the provider never settles: a
+  /// payer close (close_start) opens a dispute window that never ends before
+  /// the channel expiry; then the remainder is refundable.
   String refundHint(int now) => now >= channelExpiresAt
-      ? 'Refund available now if the channel is unsettled'
-      : 'Refund available in ${channelExpiresAt - now}s if the provider never settles';
+      ? 'If the provider never settles: start a close from Channel; refund after the dispute window'
+      : 'If the provider never settles: start a close from Channel; refund no earlier than in ${channelExpiresAt - now}s';
 }

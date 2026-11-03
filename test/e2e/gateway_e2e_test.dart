@@ -13,7 +13,6 @@ import 'package:sideband_mobile/domain/voucher.dart';
 import 'package:sideband_mobile/integrations/durable_ledger.dart';
 import 'package:sideband_mobile/integrations/history.dart';
 import 'package:sideband_mobile/integrations/http_link.dart';
-import 'package:sideband_mobile/integrations/provider_link.dart';
 import 'package:sideband_mobile/integrations/secure_store.dart';
 import 'package:sideband_mobile/integrations/session_runner.dart';
 import 'package:sideband_protocol/sideband_protocol.dart';
@@ -85,6 +84,8 @@ void main() {
   group('Dart payer vs TypeScript gateway (real HTTP, test adapter)', () {
     late SeedSigner signer;
     late RunningGateway gw;
+    // The payer device's durable state, shared by sequential sessions.
+    final payerStore = InMemorySecureStore();
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     setUpAll(() async {
@@ -134,8 +135,7 @@ void main() {
         'full session: offer, accept, pay-on-402 with a Dart-signed voucher the gateway verifies, settle prep',
         () async {
       final link = HttpProviderLink(gw.base);
-      final store = InMemorySecureStore();
-      final r = runner(link, store);
+      final r = runner(link, payerStore);
       await r.start();
       final out = await r
           .use('hello brave new world'); // 4 words => 402 => voucher 0.004
@@ -154,16 +154,28 @@ void main() {
       expect(status['onChainStatus'], 'open');
     });
 
+    test('a second session reuses the channel with a v2 baseline', () async {
+      final link = HttpProviderLink(gw.base);
+      final r = runner(link, payerStore);
+      await r.start();
+      expect(r.session!.baseline, Amount.parse('0.004'));
+      final out = await r.use('again please'); // 402 => voucher 0.006
+      expect(out.cumulativeUnits, 2);
+      final receipt = await r.finish();
+      expect(receipt.committed, Amount.parse('0.002'));
+      expect(receipt.channelCumulative, Amount.parse('0.006'));
+    });
+
     test(
-        'the gateway refuses to reuse a channel that already carries commitments',
+        'a payer device that never signed on the channel cannot start below the gateway baseline',
         () async {
       final link = HttpProviderLink(gw.base);
-      // fresh payer store so the payer-side guard does not fire first
+      // fresh payer store: it believes the channel is unused (baseline 0)
       final r = runner(link, InMemorySecureStore());
       await expectLater(
         r.start(),
-        throwsA(predicate(
-            (e) => e is ProviderRejected && e.code == 'channel_used')),
+        throwsA(predicate((e) =>
+            e is SessionViolation && e.code == 'provider_baseline_ahead')),
       );
     });
 
@@ -189,8 +201,14 @@ void main() {
           headers: {'x-admin-token': adminToken});
       expect(s2, 202);
       expect(intent['state'], 'SUBMITTED');
-      expect(intent['amount'], '0.004');
+      expect(intent['kind'], 'settle'); // channel stays open for more sessions
+      expect(intent['amount'], '0.006');
       expect(intent['txHash'], startsWith('synthetic:'));
+      final (_, status) = await link.raw(
+          'GET', '/v1/channels/${gw.channelId}/status',
+          headers: {'x-admin-token': adminToken});
+      expect(status['onChainStatus'], 'open');
+      expect(status['withdrawn'], '0.006');
     });
 
     test('gateway manifest verifies in Dart', () async {

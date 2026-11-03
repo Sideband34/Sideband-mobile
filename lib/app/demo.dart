@@ -48,11 +48,15 @@ class DemoEnvironment implements Discovery {
         trustedProviderKeys: {providerKey},
       );
 
+  /// The synthetic provider's channel records, shared by its sessions.
+  final SyntheticChannelBook book = SyntheticChannelBook();
+
   ProviderLink openLink() => LoopbackProvider(
         domain: channel.domain,
         network: 'testnet',
         now: clock,
         sessionId: 'demo-${DateTime.now().microsecondsSinceEpoch}',
+        book: book,
       );
 
   @override

@@ -19,13 +19,17 @@ Future<void> main() async {
   final demo = DemoEnvironment.fromJson(
       await rootBundle.loadString('assets/demo/session-transcript.json'));
   final signer = await SeedSigner.fromSeed(Uint8List(32)..fillRange(0, 32, 22));
-  runApp(ProviderScope(
-    overrides: [
-      demoProvider.overrideWithValue(demo),
-      signerProvider.overrideWithValue(signer)
-    ],
-    child: const SidebandApp(),
-  ));
+  final container = ProviderContainer(overrides: [
+    demoProvider.overrideWithValue(demo),
+    signerProvider.overrideWithValue(signer),
+  ]);
+  await container.read(channelControllerProvider.notifier).refresh();
+  // Re-attach to a session that was active when the app was killed.
+  await container
+      .read(sessionControllerProvider.notifier)
+      .resume(demo.openLink());
+  runApp(UncontrolledProviderScope(
+      container: container, child: const SidebandApp()));
 }
 
 class SidebandApp extends StatefulWidget {

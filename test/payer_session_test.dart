@@ -265,9 +265,10 @@ void main() {
       expect(r.isFinal, isFalse);
       expect(r.statusLabel, contains('not settled'));
       expect(r.statusLabel.toLowerCase(), isNot(contains('paid')));
-      expect(r.refundHint(now), contains('if the provider never settles'));
-      expect(
-          r.refundHint(r.channelExpiresAt), startsWith('Refund available now'));
+      expect(r.refundHint(now), contains('If the provider never settles'));
+      expect(r.refundHint(now), contains('no earlier than'));
+      expect(r.refundHint(r.channelExpiresAt),
+          contains('after the dispute window'));
     });
 
     test('only a confirmed receipt may claim settlement', () async {

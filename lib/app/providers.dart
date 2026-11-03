@@ -3,15 +3,18 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sideband_protocol/sideband_protocol.dart';
 
+import '../domain/channel_state.dart';
 import '../domain/manifest.dart';
 import '../domain/payer_session.dart';
 import '../domain/receipt.dart';
 import '../domain/signed_ledger.dart';
 import '../domain/voucher.dart';
+import '../integrations/channel_client.dart';
 import '../integrations/durable_ledger.dart';
 import '../integrations/history.dart';
 import '../integrations/provider_link.dart';
 import '../integrations/secure_store.dart';
+import '../integrations/session_journal.dart';
 import '../integrations/session_runner.dart';
 import 'demo.dart';
 
@@ -28,7 +31,51 @@ final secureStoreProvider =
 final ledgerProvider = Provider<SignedLedger>(
     (ref) => StoreBackedSignedLedger(ref.watch(secureStoreProvider)));
 final historyRepoProvider = Provider<HistoryRepository>(
-    (ref) => HistoryRepository(ref.watch(secureStoreProvider)));
+    (ref) => HistoryRepository(ref.watch(appDataStoreProvider)));
+final journalProvider = Provider<SessionJournal>(
+    (ref) => SessionJournal(ref.watch(secureStoreProvider)));
+
+/// Durable, non-secret app data (history). Defaults to the secure store; the
+/// app overrides it with a file-backed store (see main.dart).
+final appDataStoreProvider =
+    Provider<KeyValueStore>((ref) => ref.watch(secureStoreProvider));
+
+/// The payer's channel operations. Defaults to the labelled simulation.
+final channelClientProvider = Provider<ChannelClient>((ref) {
+  final demo = ref.watch(demoProvider);
+  return SimulatedChannelClient(
+    initial: demo.channel,
+    store: ref.watch(secureStoreProvider),
+    now: demo.clock,
+  );
+});
+
+class ChannelController extends Notifier<ChannelState> {
+  @override
+  ChannelState build() => ChannelState(
+        info: ref.watch(demoProvider).channel,
+        status: ChannelStatus.open,
+        closeWait: 3600,
+        synthetic: true,
+      );
+
+  ChannelClient get _client => ref.read(channelClientProvider);
+
+  Future<void> refresh() async => state = await _client.status();
+
+  Future<void> topUp(Amount a) async => state = await _client.topUp(a);
+
+  Future<void> closeStart() async => state = await _client.closeStart();
+
+  Future<void> refund() async {
+    final signed = Amount.fromStroops(
+        await ref.read(ledgerProvider).highest(state.info.channelId));
+    state = await _client.refund(signed);
+  }
+}
+
+final channelControllerProvider =
+    NotifierProvider<ChannelController, ChannelState>(ChannelController.new);
 
 class SpendLimitNotifier extends Notifier<Amount> {
   @override
@@ -69,10 +116,14 @@ class SessionUiState {
     this.error,
     this.receipt,
     this.busy = false,
+    this.baseline,
   });
   final SessionStage stage;
   final int units;
   final Amount? committed;
+
+  /// Channel cumulative signed before this session (protocol v2).
+  final Amount? baseline;
   final String? output;
   final String? error;
   final Receipt? receipt;
@@ -96,6 +147,7 @@ class SessionUiState {
         error: clearError ? null : (error ?? this.error),
         receipt: receipt ?? this.receipt,
         busy: busy ?? this.busy,
+        baseline: baseline,
       );
 }
 
@@ -108,12 +160,11 @@ class SessionController extends Notifier<SessionUiState> {
   String _nonce() =>
       '${Random.secure().nextInt(1 << 32)}-${DateTime.now().microsecondsSinceEpoch}';
 
-  Future<void> start(DiscoveredService service) async {
+  SessionRunner _runnerFor(ProviderLink link) {
     final demo = ref.read(demoProvider);
-    state = const SessionUiState(busy: true);
-    final r = SessionRunner(
-      link: service.open(),
-      channel: demo.channel,
+    return SessionRunner(
+      link: link,
+      channel: ref.read(channelControllerProvider).info,
       policy: demo.policy,
       limits: SpendingLimits(perSession: ref.read(spendLimitProvider)),
       signer: ref.read(signerProvider),
@@ -121,15 +172,57 @@ class SessionController extends Notifier<SessionUiState> {
       history: ref.read(historyRepoProvider),
       now: demo.clock,
       newNonce: _nonce,
+      journal: ref.read(journalProvider),
     );
+  }
+
+  Future<void> start(DiscoveredService service) async {
+    state = const SessionUiState(busy: true);
+    final channel = ref.read(channelControllerProvider);
+    if (channel.status != ChannelStatus.open) {
+      state = SessionUiState(
+          stage: SessionStage.closed,
+          error: 'channel_${channel.status.name}: this channel cannot back a '
+              'new session. Open the Channel tab.');
+      return;
+    }
+    final r = _runnerFor(service.open());
     try {
       await r.start();
       _runner = r;
-      state = const SessionUiState(stage: SessionStage.active);
+      state = SessionUiState(
+          stage: SessionStage.active,
+          committed: Amount.zero,
+          baseline: r.session!.baseline);
     } catch (e) {
       state = SessionUiState(stage: SessionStage.closed, error: _msg(e));
     }
     ref.invalidate(historyProvider);
+  }
+
+  /// Called at app start: re-attaches to a session journaled before the app
+  /// was killed. With the in-memory demo provider the provider side does not
+  /// survive a restart, so this ends `interrupted` (honestly recorded).
+  Future<ResumeOutcome> resume(ProviderLink link) async {
+    final r = _runnerFor(link);
+    final out = await r.resume();
+    if (out == ResumeOutcome.resumed) {
+      _runner = r;
+      final rec = await r.session!.receipt();
+      state = SessionUiState(
+          stage: SessionStage.active,
+          units: r.session!.units,
+          committed: rec.committed,
+          baseline: rec.baseline,
+          error: 'Resumed the session that was open when the app closed.');
+    } else if (out == ResumeOutcome.interrupted) {
+      state = SessionUiState(
+          stage: SessionStage.closed,
+          error: 'The session open when the app closed could not be resumed '
+              '(${r.lastError}). Its receipt is marked interrupted.');
+    }
+    ref.invalidate(historyProvider);
+    return out;
   }
 
   Future<void> use(String text) async {
@@ -171,6 +264,9 @@ class SessionController extends Notifier<SessionUiState> {
   String _msg(Object e) => switch (e) {
         BudgetExceeded() =>
           'Spending limit reached. No further commitments will be signed.',
+        BaselineGap(:final gap) =>
+          'A commitment of $gap signed earlier never reached this provider. '
+              'Starting a new session would pay it again, so nothing was signed.',
         SessionViolation(:final code, :final message) => '$code: $message',
         ProviderRejected(:final code, :final message) => '$code: $message',
         _ => e.toString(),

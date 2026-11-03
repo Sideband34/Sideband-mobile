@@ -22,9 +22,12 @@ class PaymentRequired implements Exception {
 
 /// The provider rejected a request with a stable machine-readable [code].
 class ProviderRejected implements Exception {
-  ProviderRejected(this.code, this.message);
+  ProviderRejected(this.code, this.message, {this.details = const {}});
   final String code;
   final String message;
+
+  /// Extra machine-readable fields from the provider (e.g. `expectedBaseline`).
+  final Map<String, Object?> details;
   @override
   String toString() => 'ProviderRejected($code): $message';
 }
@@ -37,6 +40,17 @@ abstract interface class ProviderLink {
   Future<void> sendVoucher(VoucherFrame v);
   Future<ServeResult> serve(String text);
   Future<void> close();
+}
+
+/// A link that can re-attach to the SAME provider session after the payer app
+/// restarts (crash resume). [resumeState] is journaled (it may hold a session
+/// bearer token, so it goes to the secure store) and handed to [reattach].
+abstract interface class ResumableLink implements ProviderLink {
+  Map<String, String> get resumeState;
+
+  /// Re-binds to the journaled session. Throws [ProviderRejected] if the
+  /// provider no longer has it active.
+  Future<void> reattach(Map<String, String> state);
 }
 
 /// A provider found by discovery, with its signed manifest (unverified until

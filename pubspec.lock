@@ -306,10 +306,10 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: be2a43d6116df52366f12cd6829d4a0836c37aa9
+      resolved-ref: "7bd24b222f7a498617f54d43310aa433ae201b12"
       url: "https://github.com/Sideband34/Sideband-protocol.git"
     source: git
-    version: "0.1.0"
+    version: "0.2.0"
   sky_engine:
     dependency: transitive
     description: flutter
