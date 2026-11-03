@@ -18,6 +18,8 @@ dependencies:
   flutter_riverpod: ^3.4.3
   flutter_secure_storage: ^11.2.0
   path_provider: ^2.1.6
+  # BLE central/peripheral (BSD-3). Pinned: adapter is untested on hardware.
+  universal_ble: 3.1.2
   go_router: ^18.1.2
 
 dev_dependencies:
