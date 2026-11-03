@@ -24,8 +24,8 @@ final demoProvider = Provider<DemoEnvironment>(
 final signerProvider = Provider<VoucherSigner>(
     (ref) => throw UnimplementedError('signerProvider'));
 
-/// Defaults to a VOLATILE in-memory store. A keychain/keystore-backed
-/// [SecureStore] is not implemented yet; override this provider with one.
+/// Defaults to a VOLATILE in-memory store (tests). The app overrides it with
+/// [FlutterSecureStore] (keychain / keystore), see main.dart.
 final secureStoreProvider =
     Provider<SecureStore>((ref) => InMemorySecureStore());
 final ledgerProvider = Provider<SignedLedger>(

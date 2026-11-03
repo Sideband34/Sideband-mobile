@@ -12,16 +12,19 @@ import '../integrations/provider_link.dart';
 /// transcript. The clock is frozen at the fixture's time so its signed
 /// manifest verifies. Nothing here touches a network or real funds.
 class DemoEnvironment implements Discovery {
-  DemoEnvironment(Map<String, dynamic> transcript)
+  /// [payerKey] overrides the fixture payer, e.g. with the device key from
+  /// `StoredKeySigner`, so the synthetic channel is bound to this device.
+  DemoEnvironment(Map<String, dynamic> transcript, {String? payerKey})
       : signedManifest =
             (transcript['manifest'] as Map).cast<String, Object?>(),
         now = transcript['now'] as int,
         providerKey = transcript['providerPublicKey'] as String,
-        payerKey = transcript['payerPublicKey'] as String,
+        payerKey = payerKey ?? transcript['payerPublicKey'] as String,
         channelId = transcript['channelId'] as String;
 
-  factory DemoEnvironment.fromJson(String json) =>
-      DemoEnvironment(jsonDecode(json) as Map<String, dynamic>);
+  factory DemoEnvironment.fromJson(String json, {String? payerKey}) =>
+      DemoEnvironment(jsonDecode(json) as Map<String, dynamic>,
+          payerKey: payerKey);
 
   final Map<String, Object?> signedManifest;
   final int now;
