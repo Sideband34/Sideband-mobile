@@ -1,9 +1,14 @@
-# secrets
+# secrets (never commit keys, seeds or env files; .env.example is the template)
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
 *.key
 *.seed
+*.jks
+*.keystore
+*.p12
+key.properties
 # build
 node_modules/
 .next/
