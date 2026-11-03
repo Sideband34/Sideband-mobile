@@ -75,12 +75,19 @@ To run the cross-repo e2e test, check out and install
 
 There is **no App Store or Google Play listing**. Pushing a `v*` tag runs
 [`release.yml`](./.github/workflows/release.yml), which tests the app, builds a release APK and
-attaches it (with a SHA-256 checksum) to a GitHub pre-release on the
-[Releases page](https://github.com/Sideband34/Sideband-mobile/releases). No tag has been published yet, so there is no
-APK yet.
+publishes it as the **latest** (non-prerelease) GitHub Release with a fixed asset name,
+`sideband-android.apk`, plus `sideband-android.apk.sha256`. So this link always serves the newest
+build once a tag exists:
+
+```
+https://github.com/Sideband34/Sideband-mobile/releases/latest/download/sideband-android.apk
+```
+
+No tag has been published yet, so that link returns 404 until the first `v*` tag. All builds:
+[Releases page](https://github.com/Sideband34/Sideband-mobile/releases).
 
 Release signing is optional. Set these repository secrets to sign with your upload key; without
-them the APK is signed with the debug key and named `...-debug-signed.apk`:
+them the APK is signed with the debug key (the release notes say which):
 
 | Secret | Value |
 |---|---|
@@ -98,19 +105,23 @@ Launcher icons are generated from the approved brand mark with `dart run flutter
 |---|---|
 | Voucher signing (matches TS golden vectors), manifest checks, spend caps | Implemented, tested |
 | Session runner, synthetic loopback provider, HTTP provider link | Implemented, tested |
+| Several sessions per channel (v2 baseline), baseline-gap detection | Implemented, tested |
+| Payer crash resume (session journal, re-send of an undelivered voucher) | Implemented, tested |
+| Keychain / keystore `SecureStore` and device-key signer | Implemented on `flutter_secure_storage`; tested via platform-channel mocks; not verified on a device |
+| Durable history (atomic file store) | Implemented, tested |
+| Channel tab: status, top-up, close-start, refund | Implemented against a labelled **simulation**: no Stellar transaction is sent |
 | App shell and screens, brand theme | Implemented, widget-tested |
 | e2e against the real gateway | Implemented; skipped in CI (needs sibling checkouts) |
-| BLE / local Wi-Fi discovery and transport | **Not implemented** |
-| Keychain / keystore storage and signer | **Not implemented**: test-only `SeedSigner`, volatile in-memory store |
-| Channel funding and on-chain settlement observation | **Not implemented**: receipts stay "committed" |
-| Android / iOS builds on a device | **Not verified**; release workflow not yet run |
+| BLE (`universal_ble`) and LAN WebSocket transports | Adapters unit-tested with fakes; **untested on hardware**, not wired into discovery |
+| On-chain channel actions and settlement observation | **Not implemented**: receipts stay "committed" |
+| Android / iOS builds on a device | **Not verified**; release workflow (fixed `sideband-android.apk`, latest release) not yet run |
 | Store listings | None |
 
 ### Compatibility
 
 | Repository | Contract |
 |---|---|
-| [Sideband-protocol](https://github.com/Sideband34/Sideband-protocol) v0.1.0 | frames, `SessionMachine`, `Amount` (git dependency on `main`) |
+| [Sideband-protocol](https://github.com/Sideband34/Sideband-protocol) v0.2.0 | frames (v2 baseline), `SessionMachine`, `Amount` (git dependency on `main`) |
 | [Sideband-channels](https://github.com/Sideband34/Sideband-channels) v0.1.0 | voucher bytes (`sideband-commit-v2` golden vectors in `test/fixtures/`) |
 | [Sideband-gateway](https://github.com/Sideband34/Sideband-gateway) v0.1.0 | manifest + frame transcript fixture, HTTP API for e2e |
 
