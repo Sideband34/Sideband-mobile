@@ -1,81 +1,200 @@
-<img src="./brand/icon.svg" alt="Sideband logo" width="144" />
+<div align="center">
 
-# sideband-mobile
+<img src="./brand/icon.svg" alt="Sideband logo" width="112" />
 
-> Sideband — Nearby services. Metered value. Stellar settlement.
+# Sideband Mobile
 
-**Status: M0/M1 payer domain layer implemented and tested; no device features (see Status below).** This repo is one of **exactly four meaningful independent codebases** in the Sideband Stellar-native project. It is not a placeholder created merely to increase Drips Wave submissions.
+**The Sideband payer app: discover nearby services, cap your spend, sign vouchers.**
 
-## Owns
-Nearby service discovery UX, local sessions, payer/provider modes, secure signing, spending limits, usage history and receipts
+Part of [Sideband](#how-sideband-works): nearby services, metered value, Stellar settlement.
 
-## Why it is separate
-It has a distinct runtime/toolchain, external interface, tests, release cadence and maintainership boundary. Its siblings depend on its delivered interface, but implementation responsibilities must not be duplicated.
+[![CI](https://github.com/Sideband34/Sideband-mobile/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sideband34/Sideband-mobile/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-FF8B24.svg)](./LICENSE)
+[![Status: pre-release](https://img.shields.io/badge/status-pre--release-130B12.svg)](#status)
+[![Network: Stellar Testnet only](https://img.shields.io/badge/network-Stellar%20Testnet%20only-130B12.svg)](./SECURITY.md)
 
-## Sibling repositories
-- `sideband-protocol` — BLE/local-Wi-Fi discovery, pairing, authenticated session frames, transport retries, metering message schema, backpressure and session IDs
-- `sideband-gateway` — Local service hosting, provider authentication, usage meter, anti-replay voucher validation, metered-demo service, settlement preparation, product marketing web
-- `sideband-channels` — Stellar channel deployment/adapters, prefunding, domain-separated cumulative commitments, close/refund, on-chain settlement and contract tests
+[How it works](#how-sideband-works) · [Quickstart](#quickstart) · [Status](#status) · [Architecture](#architecture) · [Contributing](#contributing) · [Security](#security)
 
-## Architecture and development context
-Start with:
-- `AGENTS.md` — coding agent rules;
-- `docs/PRD.md` — product purpose and MVP;
-- `docs/SRD.md` — user/system requirements, APIs and state;
-- `docs/ARCHITECTURE.md` — four-repository responsibilities, data and execution paths;
-- `docs/TECHNICAL_BUILD.md` — recommended bootstrap, testing, phases;
-- `docs/SECURITY.md` — security/trust boundaries;
-- `docs/BRAND.md` — approved flat logo and flexible UI direction;
-- `docs/ROADMAP.md` — milestone acceptance gates.
+</div>
 
-## Technical target
-Flutter mobile. The actual product implementation starts at milestone M0; no real-money transactions or claims exist in this scaffold.
+> [!WARNING]
+> Pre-release software for **Stellar Testnet and synthetic assets only**. The channel contract and
+> voucher format are **unaudited**. Do not use with real funds.
 
-## Minimal integration contract
-Always test the dependency path stated in ARCHITECTURE.md. Every new public endpoint/ABI/package message must be versioned and covered by consumer fixtures. See `docs/SRD.md` and `docs/TECHNICAL_BUILD.md`.
+## What this repository is
 
-## Drips Wave
-Stellar is essential: An online setup transaction deposits a supported Stellar asset into a Soroban one-way payment channel bound to a provider and payer commitment key. Approval/eligibility for Wave depends on substantive open-source implementation and organizer review, not repo count.
+The Flutter app a **payer** uses. It discovers a provider, checks its signed manifest, enforces a
+spending cap, signs cumulative vouchers and keeps honest receipts.
 
+- **Domain** (`lib/domain`): `sideband-commit-v2` voucher signing (the upstream one-way-channel
+  commitment XDR, hand-encoded; Dart signatures equal the TypeScript golden vectors), strkey codec,
+  manifest verification (stale, network, tamper), `PayerSession` (spend cap = min(user limit,
+  offer cap, deposit), monotonic signing, pay-on-402) and receipts that never claim settlement
+  early.
+- **Integrations** (`lib/integrations`): provider link and discovery interfaces, a synthetic
+  `LoopbackProvider` mirroring gateway rules, `HttpProviderLink` for the real gateway, a
+  `SessionRunner`, and a `SecureStore` abstraction with a durable signed ledger and history.
+- **App** (`lib/app`, `lib/features`, `lib/design_system`): Riverpod + go_router shell with
+  Discover, Session, Limit, History and Receipt screens, light and dark brand themes, and a
+  persistent pre-release banner.
+- **Cross-repo e2e** (`test/e2e`): spawns the real TypeScript gateway and runs the Dart payer
+  against it over HTTP (skips automatically when sibling checkouts are absent).
 
-## Official project identity
+## Screenshots
 
-The project uses the **approved flat SVG logo** in [`brand/icon.svg`](./brand/icon.svg), with an editable transparent vector mark in [`brand/mark.svg`](./brand/mark.svg). The [512 px GitHub organization avatar](./brand/org-avatar.png) is in the same directory. This logo is shared by all four project repositories. UI design remains intentionally flexible.
+Widget-test renders of the app on the synthetic demo provider (not device captures; regenerate
+with `SIDEBAND_SCREENSHOTS=1 flutter test test/screenshots_test.dart`):
 
+<img src="./docs/screenshots/mobile-overview-dark.png" alt="Sideband Mobile: Discover, Session, Receipt and Limit screens in the dark theme" />
 
-## Status: payer domain, session runner and app shell (v0.1.0)
+<details>
+<summary>Light theme</summary>
 
-**Implemented and tested** (`flutter test`, 56 tests; `flutter analyze` and `dart format` clean)
+<img src="./docs/screenshots/mobile-overview-light.png" alt="Sideband Mobile: Discover, Session, Receipt and Limit screens in the light theme" />
 
-- Domain (`lib/domain`): `sideband-commit-v2` voucher signing (the upstream one-way-channel Commitment XDR, hand-encoded; **Dart signatures equal the TypeScript golden vectors**), strkey codec, voucher signature verification, manifest verification (stale, network, tamper), `PayerSession` (provider/channel binding, spend cap = min(user limit, offer cap, deposit), monotonic signing, pay-on-402 path), honest receipts.
-- Integrations (`lib/integrations`): `ProviderLink`/`Discovery` transport interfaces; `LoopbackProvider` (in-memory SYNTHETIC provider mirroring gateway rules); `HttpProviderLink` for the real gateway; `SessionRunner`; `SecureStore` abstraction with `StoreBackedSignedLedger` (serialized writes, fails loudly on corrupt data) and `HistoryRepository` (a confirmed receipt is never downgraded).
-- App (`lib/app`, `lib/features`): Riverpod providers and a go_router shell with Discover, Session, Limit, History and Receipt screens driven by the loopback provider and the bundled gateway fixture. A persistent banner states pre-release/Testnet/synthetic.
-- Cross-repo end-to-end (`test/e2e/gateway_e2e_test.dart`): spawns the real TypeScript gateway (test channel adapter, loopback only) and runs the Dart payer against it over HTTP: the gateway verifies a Dart-signed voucher, enforces channel reuse refusal, session/admin auth, and settlement preparation stays `SUBMITTED` (synthetic, never confirmed). Auto-skips when `../Sideband-gateway` (with `npm ci`) and `../Sideband-channels/dist` are absent; set `SIDEBAND_GATEWAY_DIR` to override.
+</details>
 
-**NOT implemented / unverified**
+## Quickstart
 
-- No BLE or local Wi-Fi discovery/transport; no device or emulator run; Android/iOS folders are untouched `flutter create` templates, never built.
-- No keychain/keystore: the only signer is the test-only `SeedSigner` (public test seed), and `SecureStore` has only a volatile in-memory implementation, so the app loses its ledger and history on restart. A flutter_secure_storage adapter is the next step and is not written.
-- Payer-side session resume after a crash is not implemented; a channel that already carries signed commitments is refused for new sessions by design (cumulative amounts are per channel).
-- No Stellar wallet/channel funding or settlement/confirmation in the app; receipts stay "committed" because nothing observes the chain.
-- The demo clock is frozen at the fixture time so the fixture manifest verifies.
-- CI does not run the e2e test (it skips without the gateway checkout).
+Requires Flutter (stable) with Dart 3.5+.
 
-## Quick start
-
-```
+```bash
+git clone https://github.com/Sideband34/Sideband-mobile && cd Sideband-mobile
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test
+flutter test                      # 56 tests; e2e skips without sibling checkouts
+flutter run                       # on an emulator or device (not yet verified here)
 ```
 
-`sideband_protocol` is a git dependency on the `main` branch. Fixtures under `test/fixtures/` are copied from `sideband-channels/fixtures/voucher-vectors.json` and `sideband-gateway/fixtures/session-transcript.json`; refresh them when those formats change.
+To run the cross-repo e2e test, check out and install
+[Sideband-gateway](https://github.com/Sideband34/Sideband-gateway) and build
+[Sideband-channels](https://github.com/Sideband34/Sideband-channels) next to this repo (or set `SIDEBAND_GATEWAY_DIR`).
 
-## Siblings and compatibility
+## Download
 
-| Repo | Contract |
+There is **no App Store or Google Play listing**. Pushing a `v*` tag runs
+[`release.yml`](./.github/workflows/release.yml), which tests the app, builds a release APK and
+attaches it (with a SHA-256 checksum) to a GitHub pre-release on the
+[Releases page](https://github.com/Sideband34/Sideband-mobile/releases). No tag has been published yet, so there is no
+APK yet.
+
+Release signing is optional. Set these repository secrets to sign with your upload key; without
+them the APK is signed with the debug key and named `...-debug-signed.apk`:
+
+| Secret | Value |
 |---|---|
-| `sideband-protocol` v0.1.0 | frames, `SessionMachine`, `Amount` |
-| `sideband-channels` v0.1.0 | voucher bytes (`sideband-commit-v2` golden vectors) |
-| `sideband-gateway` v0.1.0 | manifest + frame transcript fixture |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 upload.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | key alias |
+| `ANDROID_KEY_PASSWORD` | key password |
+
+Launcher icons are generated from the approved brand mark with `dart run flutter_launcher_icons`
+(config in `pubspec.yaml`).
+
+## Status
+
+| Area | Status |
+|---|---|
+| Voucher signing (matches TS golden vectors), manifest checks, spend caps | Implemented, tested |
+| Session runner, synthetic loopback provider, HTTP provider link | Implemented, tested |
+| App shell and screens, brand theme | Implemented, widget-tested |
+| e2e against the real gateway | Implemented; skipped in CI (needs sibling checkouts) |
+| BLE / local Wi-Fi discovery and transport | **Not implemented** |
+| Keychain / keystore storage and signer | **Not implemented**: test-only `SeedSigner`, volatile in-memory store |
+| Channel funding and on-chain settlement observation | **Not implemented**: receipts stay "committed" |
+| Android / iOS builds on a device | **Not verified**; release workflow not yet run |
+| Store listings | None |
+
+### Compatibility
+
+| Repository | Contract |
+|---|---|
+| [Sideband-protocol](https://github.com/Sideband34/Sideband-protocol) v0.1.0 | frames, `SessionMachine`, `Amount` (git dependency on `main`) |
+| [Sideband-channels](https://github.com/Sideband34/Sideband-channels) v0.1.0 | voucher bytes (`sideband-commit-v2` golden vectors in `test/fixtures/`) |
+| [Sideband-gateway](https://github.com/Sideband34/Sideband-gateway) v0.1.0 | manifest + frame transcript fixture, HTTP API for e2e |
+
+## How Sideband works
+
+Sideband lets a phone pay a nearby device for a small metered service (for example, text
+processing priced per word) over Bluetooth LE or local Wi-Fi, without needing the internet during
+the session:
+
+1. **Fund a channel (online).** The payer deposits a Testnet asset into a Soroban payment channel
+   bound to one provider.
+2. **Discover nearby.** Devices find each other locally, verify the provider's signed service
+   manifest, and agree on price, units and a spending cap.
+3. **Stream with signed vouchers (offline).** Each metered unit is paid with a cumulative,
+   domain-separated voucher signed on the phone. The provider verifies it locally and rejects
+   replays and rollbacks.
+4. **Settle later (online).** The provider submits its highest voucher on-chain; the rest of the
+   deposit is refundable to the payer after expiry.
+
+A voucher is a commitment against already-locked funds, **not** a completed payment. Nothing is
+shown as settled until Stellar confirms it.
+
+## Architecture
+
+Four repositories, one responsibility each. No payment signing lives in transport code, and no
+chain logic lives in the app. This repository is highlighted.
+
+```mermaid
+flowchart LR
+  subgraph phone["Payer phone"]
+    M["Sideband-mobile<br/>Flutter app"]
+  end
+  subgraph provider["Provider device"]
+    G["Sideband-gateway<br/>TypeScript runtime"]
+  end
+  P["Sideband-protocol<br/>Dart frames + state machine"]
+  C["Sideband-channels<br/>Soroban contract + TS SDK"]
+  S[("Stellar Testnet")]
+  M -->|"frames, session rules"| P
+  G -->|"frame schema + limits"| P
+  M <-.->|"BLE / local Wi-Fi:<br/>offer, meter, vouchers"| G
+  M -->|"voucher format<br/>(Dart port, golden vectors)"| C
+  G -->|"verify vouchers,<br/>prepare settlement"| C
+  C -->|"fund / close / refund"| S
+  classDef current fill:#FF8B24,color:#130B12,stroke:#130B12,stroke-width:2px
+  class M current
+```
+
+| Repository | Stack | Responsibility |
+|---|---|---|
+| [**Sideband-mobile**](https://github.com/Sideband34/Sideband-mobile) | Flutter | Payer app: discovery UX, spend limits, voucher signing, history and receipts |
+| [Sideband-protocol](https://github.com/Sideband34/Sideband-protocol) | Dart | Versioned session frames, canonical encoding, session state machine, metering, transport contract |
+| [Sideband-gateway](https://github.com/Sideband34/Sideband-gateway) | TypeScript | Provider runtime: signed manifest, metered service, anti-replay voucher validation, settlement prep, landing site |
+| [Sideband-channels](https://github.com/Sideband34/Sideband-channels) | Rust · TypeScript | Soroban payment channel contract, cumulative voucher format, channel adapters, settlement intents |
+
+Cross-repo contracts are pinned with fixtures: voucher golden vectors from `Sideband-channels`,
+and a synthetic session transcript from `Sideband-gateway`. See
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for data and ownership paths.
+
+## Contributing
+
+Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) for the local checks and
+workflow, and pick from the scoped work in
+[docs/CONTRIBUTOR_ISSUES.md](./docs/CONTRIBUTOR_ISSUES.md): each item lists its interfaces,
+acceptance tests and size. Please follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+**Drips Wave.** Sideband intends to participate in
+[Drips Wave](https://docs.drips.network/wave/maintainers/participating-in-a-wave/) on Stellar.
+Participation and rewards depend on organizer approval and are not guaranteed. Wave issues are
+real, scoped work in this repository's boundary, never filler.
+
+## Security
+
+Please report vulnerabilities privately; see [SECURITY.md](./SECURITY.md). The threat model is
+in [docs/SECURITY.md](./docs/SECURITY.md). Never post keys or seeds in issues, even Testnet ones.
+
+## Project documents
+
+[PRD](./docs/PRD.md) · [Requirements](./docs/SRD.md) · [Architecture](./docs/ARCHITECTURE.md) ·
+[Stellar protocol](./docs/STELLAR_PROTOCOL.md) · [Roadmap](./docs/ROADMAP.md) ·
+[Brand](./docs/BRAND.md) · [Agent rules](./AGENTS.md)
+
+The approved logo is in [`brand/`](./brand) and shared by all four repositories.
+
+## License
+
+[MIT](./LICENSE)
