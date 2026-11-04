@@ -40,8 +40,9 @@ Future<RunningGateway> startGateway(String payerKey) async {
   final port = probe.port;
   await probe.close();
   final p = await Process.start(
-    tsx.absolute.path,
-    ['src/main.ts'],
+    // `node --import tsx` works on every OS; the .bin/tsx shim is a shell script that Windows cannot spawn.
+    'node',
+    ['--import', 'tsx', 'src/main.ts'],
     workingDirectory: gatewayDir.path,
     environment: {
       'PORT': '$port',
@@ -57,7 +58,7 @@ Future<RunningGateway> startGateway(String payerKey) async {
       .transform(utf8.decoder)
       .transform(const LineSplitter())
       .asBroadcastStream();
-  p.stderr.drain<void>();
+  p.stderr.transform(utf8.decoder).listen((s) => stderr.write(s));
   String? provider;
   String? channel;
   final ready = Completer<void>();
