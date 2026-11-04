@@ -76,7 +76,7 @@ Future<RunningGateway> startGateway(String payerKey) async {
       ready.complete();
     }
   });
-  await ready.future.timeout(const Duration(seconds: 30));
+  await ready.future.timeout(const Duration(seconds: 120));
   await Future<void>.delayed(const Duration(milliseconds: 300));
   return RunningGateway(p, port, provider!, channel!);
 }

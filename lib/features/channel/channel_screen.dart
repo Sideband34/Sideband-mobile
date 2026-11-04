@@ -145,8 +145,17 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
                         ?.copyWith(color: cs.onSurfaceVariant)),
                 if (s.refunded != null) ...[
                   const SizedBox(height: 4),
-                  Text('Refunded to you (simulated): ${s.refunded} TEST-TOKEN',
+                  Text(
+                      'Refunded to you${s.synthetic ? ' (simulated)' : ''}: ${s.refunded} TEST-TOKEN',
                       key: const Key('channel-refunded')),
+                ],
+                if (s.lastTxHash != null) ...[
+                  const SizedBox(height: 8),
+                  // A real Testnet transaction: show the full hash so it can be opened in any explorer.
+                  SelectableText('Last transaction: ${s.lastTxHash}',
+                      key: const Key('channel-tx-hash'),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: cs.onSurfaceVariant)),
                 ],
               ],
             ),

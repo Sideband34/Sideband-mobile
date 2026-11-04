@@ -18,6 +18,7 @@ class ChannelState {
     this.closeEffectiveAt,
     this.refunded,
     required this.synthetic,
+    this.lastTxHash,
   });
 
   /// Static binding; `info.deposit` is the total deposit after top-ups.
@@ -35,6 +36,9 @@ class ChannelState {
 
   /// True for the in-app simulation (no Stellar transaction is ever sent).
   final bool synthetic;
+
+  /// Hash of the Testnet transaction that produced this state (real client only).
+  final String? lastTxHash;
 
   bool get isTerminal =>
       status == ChannelStatus.closed || status == ChannelStatus.refunded;
@@ -70,6 +74,7 @@ class ChannelState {
         closeEffectiveAt: closeEffectiveAt ?? this.closeEffectiveAt,
         refunded: refunded ?? this.refunded,
         synthetic: synthetic,
+        lastTxHash: lastTxHash,
       );
 }
 
