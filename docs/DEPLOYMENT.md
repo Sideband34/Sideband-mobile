@@ -32,3 +32,19 @@ LOG_LEVEL=info
 - Never republish user transactions solely because a client request timed out.
 - Test signing-key rotation, dependency outages, stale quotes, malicious user input, insufficient balances and duplicate delivery.
 - External reference infrastructure may change; check upstream project versions and licenses at build time.
+
+## Device and Android build status (2026-11-04)
+
+- `flutter build apk --release`: **succeeds** on the owner's Windows machine (`app-release.apk`, 50.6 MB). It needed two
+  Gradle settings (both committed): `kotlin.incremental=false` (the project and the pub cache were on different drives, which
+  breaks Kotlin's incremental compiler) and `compileSdk` 36 for library plugins (`stellar_flutter_sdk` is compiled against
+  Android 34 but its AndroidX dependencies need 35+). `flutter doctor` still reports Android licences as not accepted; the
+  build worked anyway, but the owner should run `flutter doctor --android-licenses` themselves.
+- **No device test was done.** The APK has not been installed on a phone, so no session has run on hardware.
+- **BLE (`universal_ble`) is experimental**: unit-tested with fakes only; no two-device test was possible. It is not wired
+  into discovery.
+- The channel actions default to the labelled on-device simulation. `SorobanChannelClient` (real `top_up`, `close_start`,
+  `refund` through Soroban RPC with the device key) exists and is tested against a fake chain; one real Testnet `top_up`
+  ran through it (`test/live/soroban_live_test.dart`, skipped unless `SIDEBAND_LIVE_*` is set). It is not selected by the
+  UI yet, and `close_start`/`refund` were not run live through the Dart client.
+- The release workflow runs on Linux and was not exercised by this run.

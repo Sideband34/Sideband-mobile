@@ -109,7 +109,8 @@ Launcher icons are generated from the approved brand mark with `dart run flutter
 | Payer crash resume (session journal, re-send of an undelivered voucher) | Implemented, tested |
 | Keychain / keystore `SecureStore` and device-key signer | Implemented on `flutter_secure_storage`; tested via platform-channel mocks; not verified on a device |
 | Durable history (atomic file store) | Implemented, tested |
-| Channel tab: status, top-up, close-start, refund | Implemented against a labelled **simulation**: no Stellar transaction is sent |
+| Channel tab: status, top-up, close-start, refund | Defaults to a labelled **simulation** (no transaction sent). A real Soroban client (`SorobanChannelClient`, `stellar_flutter_sdk` 3.10.0) is implemented and unit-tested; one real Testnet `top_up` ran through it. **Not selected by the UI yet; never run on a phone** |
+| Release APK | `flutter build apk --release` succeeds on the owner's Windows machine (needs `kotlin.incremental=false` and `compileSdk` 36 for plugins, both set). **Not installed on any device** |
 | App shell and screens, brand theme | Implemented, widget-tested |
 | e2e against the real gateway | Implemented; skipped in CI (needs sibling checkouts) |
 | BLE (`universal_ble`) and LAN WebSocket transports | Adapters unit-tested with fakes; **untested on hardware**, not wired into discovery |
